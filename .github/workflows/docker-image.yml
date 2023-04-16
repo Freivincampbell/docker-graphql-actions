@@ -13,17 +13,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out code
+    - name: Checkout code
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
-    - name: Docker login
+    
+    - name: Git Semantic Version
+      uses: PaulHatch/semantic-version@v4.0.3
+      with:
+        major_pattern: "major:"
+        minor_pattern: "feat:"
+        format: "${major}.${minor}.${patch}-prerelease${increment}"
+      id: version
+    
+    - name: Docker Login
       env:
-        DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_USER: ${{ secrets.DOCKER_USER }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        DOCKER_CLI_EXPERIMENTAL: enabled
+        
       run: |
-        echo "Iniciando Login" 
-        echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin --disable-content-trust
-        echo "Fin Login" 
+        docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+        
+    - name: Build Docker Image
+      env:
+        NEW_VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        docker build -t freivincampbell/docker-graphql:$NEW_VERSION .
+        docker build -t freivincampbell/docker-graphql:latest .
+        
+    - name: Push Docker Image
+      env:
+        NEW_VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        docker push klerith/docker-graphql:$NEW_VERSION
+        docker push klerith/docker-graphql:latest
